@@ -37,6 +37,9 @@ import xml.dom.minidom
 import rospy
 import sensor_msgs.msg
 
+import numpy
+import numexpr
+
 
 def get_param(name, value=None):
     private = "~%s" % name
@@ -113,6 +116,13 @@ class JointStatePublisher():
                         entry['factor'] = float(tag.getAttribute('multiplier'))
                     if tag.hasAttribute('offset'):
                         entry['offset'] = float(tag.getAttribute('offset'))
+                    if tag.hasAttribute('nlFunPos'):
+                        #replace ^ with **
+                        entry['nlFunPos'] = tag.getAttribute('nlFunPos').replace('^', '**')
+                    if tag.hasAttribute('nlFunVel'):
+                        entry['nlFunVel'] = tag.getAttribute('nlFunVel').replace('^', '**')
+                    if tag.hasAttribute('nlFunEff'):
+                        entry['nlFunEff'] = tag.etAttribute('nlFunEff').replace('^', '**')
 
                     self.dependent_joints[name] = entry
                     continue
@@ -244,18 +254,20 @@ class JointStatePublisher():
             for i, name in enumerate(self.joint_list):
                 msg.name.append(str(name))
                 joint = None
-
+                
                 # Add Free Joint
                 if name in self.free_joints:
                     joint = self.free_joints[name]
                     factor = 1
                     offset = 0
+                    nlFunPos = ""
                 # Add Dependent Joint
                 elif name in self.dependent_joints:
                     param = self.dependent_joints[name]
                     parent = param['parent']
                     factor = param.get('factor', 1)
                     offset = param.get('offset', 0)
+                    nlFunPos = param.get('nlFunPos', "")
                     # Handle recursive mimic chain
                     recursive_mimic_chain_joints = [name]
                     while parent in self.dependent_joints:
@@ -271,7 +283,12 @@ class JointStatePublisher():
                     joint = self.free_joints[parent]
 
                 if has_position and 'position' in joint:
-                    msg.position[i] = joint['position'] * factor + offset
+                    if nlFunPos == "":
+                        msg.position[i] = joint['position'] * factor + offset
+                    else:
+                        msg.position[i] = numexpr.evaluate(nlFunPos, {"x":joint['position']})
+                        print msg.position[i]
+
                 if has_velocity and 'velocity' in joint:
                     msg.velocity[i] = joint['velocity'] * factor
                 if has_effort and 'effort' in joint:
