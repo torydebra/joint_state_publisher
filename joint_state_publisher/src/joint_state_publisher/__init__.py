@@ -37,7 +37,6 @@ import xml.dom.minidom
 import rospy
 import sensor_msgs.msg
 
-import numpy
 import numexpr
 
 
