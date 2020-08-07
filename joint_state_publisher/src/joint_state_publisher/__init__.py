@@ -116,6 +116,7 @@ class JointStatePublisher():
                     if tag.hasAttribute('offset'):
                         entry['offset'] = float(tag.getAttribute('offset'))
                     if tag.hasAttribute('nlFunPos'):
+                        rospy.loginfo("I found a non linear mimic expression which I will follow for joint %s: '%s'", child.getAttribute('name'), tag.getAttribute('nlFunPos') )
                         #replace ^ with **
                         entry['nlFunPos'] = tag.getAttribute('nlFunPos').replace('^', '**')
                     if tag.hasAttribute('nlFunVel'):
@@ -286,7 +287,6 @@ class JointStatePublisher():
                         msg.position[i] = joint['position'] * factor + offset
                     else:
                         msg.position[i] = numexpr.evaluate(nlFunPos, {"x":joint['position']})
-                        print msg.position[i]
 
                 if has_velocity and 'velocity' in joint:
                     msg.velocity[i] = joint['velocity'] * factor
