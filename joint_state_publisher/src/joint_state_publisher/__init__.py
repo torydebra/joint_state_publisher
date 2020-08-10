@@ -123,6 +123,9 @@ class JointStatePublisher():
                         entry['nlFunVel'] = tag.getAttribute('nlFunVel').replace('^', '**')
                     if tag.hasAttribute('nlFunEff'):
                         entry['nlFunEff'] = tag.etAttribute('nlFunEff').replace('^', '**')
+                    
+                    entry['maxval'] = maxval
+                    entry['minval'] = minval
 
                     self.dependent_joints[name] = entry
                     continue
@@ -284,14 +287,21 @@ class JointStatePublisher():
 
                 if has_position and 'position' in joint:
                     if nlFunPos == "":
+                        #here is also for non mimic where factor and offset are 1 and 0
                         msg.position[i] = joint['position'] * factor + offset
                     else:
                         msg.position[i] = numexpr.evaluate(nlFunPos, {"x":joint['position']})
+                        
+                    # enforce joint limit (https://github.com/ros/joint_state_publisher/compare/noetic-devel...alextoind:feature-limit-mimic-joints#)
+                    if name in self.dependent_joints:
+                        param = self.dependent_joints[name]
+                        msg.position[i] = sorted((param.get('minval'), msg.position[i], param.get('maxval')))[1]                        
 
                 if has_velocity and 'velocity' in joint:
                     msg.velocity[i] = joint['velocity'] * factor
                 if has_effort and 'effort' in joint:
                     msg.effort[i] = joint['effort']
+
 
             if msg.name or msg.position or msg.velocity or msg.effort:
                 # Only publish non-empty messages
